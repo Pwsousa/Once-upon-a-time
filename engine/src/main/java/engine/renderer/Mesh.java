@@ -1,49 +1,45 @@
 package engine.renderer;
 
 import engine.core.Cleanable;
-import org.lwjgl.system.MemoryUtil;
-
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 
 import static org.lwjgl.opengl.GL33.*;
 
 /**
- * Encapsula VAO + VBO (+ EBO opcional) para geometria estatica.
+ * VAO — Vertex Array Object.
+ * Agrupa VBO + atributos de vertices + EBO (opcional) em um unico objeto.
  *
- * Sem indices — usa glDrawArrays:
+ * O VAO memoriza:
+ *   - qual VBO esta vinculado
+ *   - como os atributos estao dispostos (glVertexAttribPointer)
+ *   - qual EBO (IndexBuffer) esta vinculado
+ *
+ * Apos configurar, basta fazer glBindVertexArray(vao) para restaurar
+ * todo o estado — sem reconfigurar atributos a cada frame.
+ *
+ * Factory methods:
+ *
+ *   // sem indices — glDrawArrays
  *   Mesh mesh = Mesh.create(vertices, 3, 3);
  *
- * Com indices — usa glDrawElements (recomendado para quads e meshes complexas):
+ *   // com indices — glDrawElements (recomendado para quads e meshes)
  *   Mesh mesh = Mesh.create(vertices, indices, 3, 3);
  *
- * attributeSizes descreve quantos floats cada atributo ocupa, na ordem
- * de layout location = 0, 1, 2...
- *
- * Estrutura de buffers OpenGL:
- *
- *   VAO ──┬── VBO  (dados dos vertices: posicao, cor, uv, normal...)
- *         └── EBO  (indices de vertices para reusar vertices compartilhados)
- *
- * Exemplo de quad (4 vertices, 6 indices = 2 triangulos):
- *
- *   0 ──── 1        indices: [0,1,2]  triangulo superior
- *   │  ╲   │                 [0,2,3]  triangulo inferior
- *   │   ╲  │
- *   3 ──── 2
+ * attributeSizes: numero de floats por atributo na ordem dos location:
+ *   {3, 3} = location 0 tem vec3, location 1 tem vec3
+ *   {3, 2} = location 0 tem vec3 posicao, location 1 tem vec2 uv
  */
 public final class Mesh implements Cleanable {
 
-    private final int vao;
-    private final int vbo;
-    private final int ebo;          // 0 = sem indices
-    private final int drawCount;    // vertices (sem EBO) ou indices (com EBO)
+    private final int            vao;
+    private final VertexBuffer   vbo;
+    private final IndexBuffer    ebo;    // null = sem indices
+    private final int            vertexCount;
 
-    private Mesh(int vao, int vbo, int ebo, int drawCount) {
-        this.vao       = vao;
-        this.vbo       = vbo;
-        this.ebo       = ebo;
-        this.drawCount = drawCount;
+    private Mesh(int vao, VertexBuffer vbo, IndexBuffer ebo, int vertexCount) {
+        this.vao         = vao;
+        this.vbo         = vbo;
+        this.ebo         = ebo;
+        this.vertexCount = vertexCount;
     }
 
     // -------------------------------------------------------------------------
@@ -51,51 +47,51 @@ public final class Mesh implements Cleanable {
     // -------------------------------------------------------------------------
 
     /**
-     * Cria Mesh sem indices. Usa glDrawArrays.
-     *
-     * @param vertices       floats interleaved (posicao, cor, uv...)
-     * @param attributeSizes numero de floats por atributo (ex: 3, 3 = vec3 pos + vec3 cor)
+     * Cria Mesh sem Index Buffer. Usa glDrawArrays.
      */
     public static Mesh create(float[] vertices, int... attributeSizes) {
         validate(attributeSizes);
 
-        int stride      = stride(attributeSizes);
+        int stride      = computeStride(attributeSizes);
         int vertexCount = vertices.length / (stride / Float.BYTES);
 
         int vao = glGenVertexArrays();
-        int vbo = glGenBuffers();
-
         glBindVertexArray(vao);
-        uploadVertices(vbo, vertices);
-        configureAttributes(stride, attributeSizes);
-        glBindVertexArray(0);
 
-        return new Mesh(vao, vbo, 0, vertexCount);
+        VertexBuffer vbo = VertexBuffer.staticDraw(vertices);
+        vbo.bind();
+        configureAttributes(stride, attributeSizes);
+        vbo.unbind();
+
+        glBindVertexArray(0);
+        return new Mesh(vao, vbo, null, vertexCount);
     }
 
     /**
-     * Cria Mesh com EBO (indexed rendering). Usa glDrawElements.
-     * Permite reusar vertices — essencial para quads, cubos e meshes complexas.
+     * Cria Mesh com Index Buffer (EBO). Usa glDrawElements.
+     * Vertices do VBO sao reutilizados pelos indices — sem duplicatas na GPU.
      *
-     * @param vertices       floats interleaved
-     * @param indices        indices que referenciam vertices no VBO
+     * @param vertices       floats interleaved dos vertices
+     * @param indices        indices referenciando posicoes no array de vertices
      * @param attributeSizes numero de floats por atributo
      */
     public static Mesh create(float[] vertices, int[] indices, int... attributeSizes) {
         validate(attributeSizes);
 
-        int stride = stride(attributeSizes);
+        int stride = computeStride(attributeSizes);
 
         int vao = glGenVertexArrays();
-        int vbo = glGenBuffers();
-        int ebo = glGenBuffers();
-
         glBindVertexArray(vao);
-        uploadVertices(vbo, vertices);
-        uploadIndices(ebo, indices);          // EBO fica vinculado ao VAO
-        configureAttributes(stride, attributeSizes);
-        glBindVertexArray(0);
 
+        VertexBuffer vbo = VertexBuffer.staticDraw(vertices);
+        vbo.bind();
+        configureAttributes(stride, attributeSizes);
+        vbo.unbind();
+
+        // EBO criado com VAO vinculado — VAO armazena a referencia automaticamente
+        IndexBuffer ebo = new IndexBuffer(indices);
+
+        glBindVertexArray(0);
         return new Mesh(vao, vbo, ebo, indices.length);
     }
 
@@ -105,10 +101,11 @@ public final class Mesh implements Cleanable {
 
     public void draw() {
         glBindVertexArray(vao);
-        if (ebo != 0) {
-            glDrawElements(GL_TRIANGLES, drawCount, GL_UNSIGNED_INT, 0L);
+        if (ebo != null) {
+            // glDrawElements usa os indices do EBO para buscar vertices no VBO
+            glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0L);
         } else {
-            glDrawArrays(GL_TRIANGLES, 0, drawCount);
+            glDrawArrays(GL_TRIANGLES, 0, vertexCount);
         }
         glBindVertexArray(0);
     }
@@ -120,35 +117,13 @@ public final class Mesh implements Cleanable {
     @Override
     public void cleanup() {
         glDeleteVertexArrays(vao);
-        glDeleteBuffers(vbo);
-        if (ebo != 0) glDeleteBuffers(ebo);
+        vbo.cleanup();
+        if (ebo != null) ebo.cleanup();
     }
 
     // -------------------------------------------------------------------------
-    // Helpers privados
+    // Helpers
     // -------------------------------------------------------------------------
-
-    private static void uploadVertices(int vbo, float[] vertices) {
-        FloatBuffer buf = MemoryUtil.memAllocFloat(vertices.length);
-        try {
-            buf.put(vertices).flip();
-            glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            glBufferData(GL_ARRAY_BUFFER, buf, GL_STATIC_DRAW);
-        } finally {
-            MemoryUtil.memFree(buf);
-        }
-    }
-
-    private static void uploadIndices(int ebo, int[] indices) {
-        IntBuffer buf = MemoryUtil.memAllocInt(indices.length);
-        try {
-            buf.put(indices).flip();
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, buf, GL_STATIC_DRAW);
-        } finally {
-            MemoryUtil.memFree(buf);
-        }
-    }
 
     private static void configureAttributes(int stride, int[] attributeSizes) {
         int offset = 0;
@@ -157,18 +132,15 @@ public final class Mesh implements Cleanable {
             glEnableVertexAttribArray(i);
             offset += attributeSizes[i];
         }
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    private static int stride(int[] attributeSizes) {
+    private static int computeStride(int[] sizes) {
         int total = 0;
-        for (int s : attributeSizes) total += s;
+        for (int s : sizes) total += s;
         return total * Float.BYTES;
     }
 
-    private static void validate(int[] attributeSizes) {
-        if (attributeSizes.length == 0) {
-            throw new IllegalArgumentException("attributeSizes nao pode ser vazio");
-        }
+    private static void validate(int[] sizes) {
+        if (sizes.length == 0) throw new IllegalArgumentException("attributeSizes nao pode ser vazio");
     }
 }
