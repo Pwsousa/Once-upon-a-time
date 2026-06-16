@@ -80,6 +80,26 @@ public final class ShaderProgram implements Cleanable {
     }
 
     // -------------------------------------------------------------------------
+    // Uniform Blocks (UBO)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Vincula um bloco de uniform ao binding point do UBO.
+     * Deve ser chamado uma vez apos criar o shader (antes do primeiro frame).
+     *
+     * Equivale a: layout(std140, binding=N) no GLSL 4.2+
+     * Em GLSL 330 o binding precisa ser feito via codigo Java.
+     */
+    public void bindUniformBlock(String blockName, int bindingPoint) {
+        int index = glGetUniformBlockIndex(id, blockName);
+        if (index != GL_INVALID_INDEX) {
+            glUniformBlockBinding(id, index, bindingPoint);
+        } else {
+            System.err.println("[ShaderProgram] bloco de uniform nao encontrado: '" + blockName + "'");
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Cleanup
     // -------------------------------------------------------------------------
 

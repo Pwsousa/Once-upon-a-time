@@ -5,6 +5,7 @@
 // ---------------------------------------------------------------
 in vec3 vColor;
 in vec3 vFragPos;
+in vec2 vTexCoord;  // UV interpolado pelo rasterizador
 
 // ---------------------------------------------------------------
 // Saida — cor final do fragmento (pixel)
@@ -12,14 +13,24 @@ in vec3 vFragPos;
 out vec4 fragColor;
 
 // ---------------------------------------------------------------
-// Uniforms
+// UBO PerFrame (binding point 0) — mesma declaracao do vertex shader
+//
+// Samplers nao podem entrar em UBOs (restricao OpenGL) —
+// uTexture permanece como uniform classico.
 // ---------------------------------------------------------------
-uniform float uTime;  // tempo em segundos desde o inicio
+layout(std140) uniform PerFrame {
+    mat4  uView;
+    mat4  uProjection;
+    float uTime;
+};
+
+uniform sampler2D uTexture;  // slot de textura passado via setUniform
 
 void main() {
-    // Pulso de brilho baseado no tempo — demonstra uso de uTime
-    // sin() retorna [-1,1], remapeamos para [0.4, 1.0] para nao apagar
+    // Pulso de brilho baseado no tempo (vem do UBO PerFrame)
     float pulse = 0.4 + 0.6 * abs(sin(uTime * 1.5));
 
-    fragColor = vec4(vColor * pulse, 1.0);
+    vec4 texColor = texture(uTexture, vTexCoord);
+
+    fragColor = texColor * vec4(vColor * pulse, 1.0);
 }
