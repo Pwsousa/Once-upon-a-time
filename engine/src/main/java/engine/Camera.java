@@ -21,11 +21,11 @@ import static org.lwjgl.glfw.GLFW.*;
  */
 public final class Camera {
 
-    private final Vector3f position = new Vector3f(0f, 0f, 5f);
+    private final Vector3f position = new Vector3f(0f, 0f, 3f);
     private float yaw   = -90f;  // -90 = olhando para -Z (padrao OpenGL)
     private float pitch =   0f;
 
-    private static final float SPEED     = 3.0f;  // unidades/segundo
+    private static final float SPEED     = 2.0f;  // unidades/segundo
     private static final float TURN_RATE = 60.0f; // graus/segundo
 
     // pre-alocados — evita GC por frame
