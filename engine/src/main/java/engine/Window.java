@@ -5,6 +5,7 @@ import org.lwjgl.glfw.*;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
+import java.util.function.BiConsumer;
 
 import static org.lwjgl.glfw.Callbacks.*;
 import static org.lwjgl.glfw.GLFW.*;
@@ -18,11 +19,25 @@ import static org.lwjgl.system.MemoryUtil.*;
  */
 public final class Window {
 
-    private final WindowConfig config;
-    private long handle;
+    private final WindowConfig             config;
+    private final Input                    input;
+    private long                           handle;
+    private int                            currentWidth, currentHeight;
+    private BiConsumer<Integer, Integer>   resizeCallback;
 
-    public Window(WindowConfig config) {
-        this.config = config;
+    public Window(WindowConfig config, Input input) {
+        this.config        = config;
+        this.input         = input;
+        this.currentWidth  = config.width;
+        this.currentHeight = config.height;
+    }
+
+    /**
+     * Registra callback chamado apos resize do framebuffer.
+     * Deve ser definido ANTES de init() para que seja capturado pelo GLFW.
+     */
+    public void setResizeCallback(BiConsumer<Integer, Integer> cb) {
+        this.resizeCallback = cb;
     }
 
     public void init() {
@@ -48,9 +63,15 @@ public final class Window {
             if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
                 glfwSetWindowShouldClose(window, true);
             }
+            input.onKey(key, action);
         });
 
-        glfwSetFramebufferSizeCallback(handle, (window, w, h) -> glViewport(0, 0, w, h));
+        glfwSetFramebufferSizeCallback(handle, (window, w, h) -> {
+            currentWidth  = w;
+            currentHeight = h;
+            glViewport(0, 0, w, h);
+            if (resizeCallback != null) resizeCallback.accept(w, h);
+        });
 
         centerOnScreen();
 
@@ -59,24 +80,16 @@ public final class Window {
         glfwShowWindow(handle);
     }
 
-    public boolean shouldClose() {
-        return glfwWindowShouldClose(handle);
-    }
-
-    public void swapAndPoll() {
-        glfwSwapBuffers(handle);
-        glfwPollEvents();
-    }
+    public boolean shouldClose()    { return glfwWindowShouldClose(handle); }
+    public void    swapAndPoll()    { glfwSwapBuffers(handle); glfwPollEvents(); }
+    public long    getHandle()      { return handle; }
+    public float   getAspectRatio() { return (float) currentWidth / currentHeight; }
 
     public void destroy() {
         glfwFreeCallbacks(handle);
         glfwDestroyWindow(handle);
         glfwTerminate();
         glfwSetErrorCallback(null).free();
-    }
-
-    public long getHandle() {
-        return handle;
     }
 
     private void centerOnScreen() {

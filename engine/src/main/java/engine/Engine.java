@@ -14,21 +14,18 @@ import static org.lwjgl.opengl.GL33.*;
  *   onInit()             — carrega recursos (shaders, meshes, texturas)
  *   onUpdate(dt)         — logica por frame (input, fisica, animacao)
  *   onRender()           — chamadas de renderizacao
- *   onCleanup()          — libera recursos GPU (cleanup de Mesh, ShaderProgram)
- *
- * Exemplo de uso:
- *   public class MyGame extends Engine {
- *       public static void main(String[] args) { new MyGame().start(); }
- *       ...
- *   }
+ *   onCleanup()          — libera recursos GPU
+ *   onResize(w, h)       — opcional; chamado em resize do framebuffer
  */
 public abstract class Engine {
 
     protected Renderer renderer;
-    private Window window;
+    protected Input    input  = new Input();
+    private   Window   window;
 
     public final void start() {
-        window = new Window(createWindowConfig());
+        window = new Window(createWindowConfig(), input);
+        window.setResizeCallback(this::onResize);
         window.init();
 
         GL.createCapabilities();
@@ -44,20 +41,22 @@ public abstract class Engine {
     }
 
     protected abstract WindowConfig createWindowConfig();
-
     protected abstract void onInit();
-
     protected abstract void onUpdate(float deltaTime);
-
     protected abstract void onRender();
-
     protected abstract void onCleanup();
+
+    /** Override para reagir ao resize e atualizar a projection matrix. */
+    protected void onResize(int width, int height) {}
+
+    /** Aspect ratio atual da janela (atualiza apos resize). */
+    protected float getAspectRatio() { return window.getAspectRatio(); }
 
     private void gameLoop() {
         long lastTime = System.nanoTime();
 
         while (!window.shouldClose()) {
-            long now = System.nanoTime();
+            long  now       = System.nanoTime();
             float deltaTime = (now - lastTime) / 1_000_000_000f;
             lastTime = now;
 
