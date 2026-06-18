@@ -1,8 +1,9 @@
 package engine;
 
 import engine.core.WindowConfig;
+import engine.renderer.Mesh;
 import engine.renderer.Model;
-import engine.renderer.Shapes;
+import engine.renderer.ObjLoader;
 import engine.renderer.ShaderProgram;
 import engine.renderer.Texture;
 import engine.renderer.UniformBuffer;
@@ -10,6 +11,19 @@ import engine.scene.Entity;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+/**
+ * Carrega "models/cube.obj" e renderiza o cubo rotacionando.
+ *
+ * Para trocar o modelo: substitua "models/cube.obj" pelo caminho do seu arquivo.
+ * O arquivo deve estar em src/main/resources/ e exportado do Blender/Maya como OBJ.
+ *
+ * Exportacao recomendada no Blender:
+ *   File → Export → Wavefront (.obj)
+ *   [x] Include Normals
+ *   [x] Include UVs
+ *   [x] Triangulate Faces
+ *   Forward Axis: -Z,  Up Axis: Y
+ */
 public final class Main extends Engine {
 
     private ShaderProgram shader;
@@ -29,7 +43,7 @@ public final class Main extends Engine {
 
     @Override
     protected WindowConfig createWindowConfig() {
-        return new WindowConfig.Builder("3D Engine — Cubo")
+        return new WindowConfig.Builder("3D Engine — OBJ Loader")
                 .width(1280)
                 .height(720)
                 .vsync(true)
@@ -38,8 +52,12 @@ public final class Main extends Engine {
 
     @Override
     protected void onInit() {
-        shader    = new ShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
-        cubeModel = new Model(Shapes.cube(), new Texture("textures/test.png"));
+        shader = new ShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
+
+        // carrega OBJ do classpath (src/main/resources/models/cube.obj)
+        ObjLoader.MeshData data = ObjLoader.load("models/cube.obj");
+        Mesh mesh = Mesh.create(data.vertices, data.indices, 3, 3, 2);
+        cubeModel = new Model(mesh, new Texture("textures/test.png"));
 
         cube = new Entity(cubeModel);
         cube.transform.position.set(0f, 0f, 0f);
@@ -52,11 +70,11 @@ public final class Main extends Engine {
         perFrameUBO  = new UniformBuffer(0, PER_FRAME_SIZE);
         perObjectUBO = new UniformBuffer(1, PER_OBJECT_SIZE);
 
-        // camera fixa: olhando para a origem a partir de (0, 0, 3)
+        // camera fixa olhando para a origem
         view.lookAt(
-            new Vector3f(0f, 0f, 3f),   // posicao da camera
-            new Vector3f(0f, 0f, 0f),   // ponto alvo (cubo)
-            new Vector3f(0f, 1f, 0f)    // up
+            new Vector3f(0f, 1.5f, 3f),  // posicao camera
+            new Vector3f(0f, 0f,   0f),  // alvo (cubo)
+            new Vector3f(0f, 1f,   0f)   // up
         );
 
         proj.perspective((float) Math.toRadians(45f), getAspectRatio(), 0.1f, 100f);
@@ -70,8 +88,8 @@ public final class Main extends Engine {
     @Override
     protected void onUpdate(float deltaTime) {
         time += deltaTime;
-        cube.transform.rotation.y = time * 45f;  // 45 graus/segundo em Y
-        cube.transform.rotation.x = time * 30f;  // 30 graus/segundo em X
+        cube.transform.rotation.y = time * 45f;
+        cube.transform.rotation.x = time * 20f;
     }
 
     @Override

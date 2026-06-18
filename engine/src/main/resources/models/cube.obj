@@ -1,0 +1,86 @@
+# cube.obj — cubo unitario 1x1x1 centrado na origem
+#
+# Estrutura:
+#   24 posicoes (4 por face, separadas para UVs corretas por face)
+#    4 coordenadas UV (cantos: TL, TR, BR, BL)
+#    6 normais (uma por direcao de face)
+#   12 triangulos (2 por face)
+#
+# Formato das faces: posicao/uv/normal (indices 1-based)
+# Este arquivo pode ser gerado/editado em Blender, Maya, 3ds Max, etc.
+
+# ---- posicoes ---------------------------------------------------------------
+
+# frente (+Z)
+v -0.5  0.5  0.5
+v  0.5  0.5  0.5
+v  0.5 -0.5  0.5
+v -0.5 -0.5  0.5
+
+# fundo (-Z)
+v  0.5  0.5 -0.5
+v -0.5  0.5 -0.5
+v -0.5 -0.5 -0.5
+v  0.5 -0.5 -0.5
+
+# esquerda (-X)
+v -0.5  0.5 -0.5
+v -0.5  0.5  0.5
+v -0.5 -0.5  0.5
+v -0.5 -0.5 -0.5
+
+# direita (+X)
+v  0.5  0.5  0.5
+v  0.5  0.5 -0.5
+v  0.5 -0.5 -0.5
+v  0.5 -0.5  0.5
+
+# topo (+Y)
+v -0.5  0.5 -0.5
+v  0.5  0.5 -0.5
+v  0.5  0.5  0.5
+v -0.5  0.5  0.5
+
+# base (-Y)
+v -0.5 -0.5  0.5
+v  0.5 -0.5  0.5
+v  0.5 -0.5 -0.5
+v -0.5 -0.5 -0.5
+
+# ---- coordenadas UV ---------------------------------------------------------
+# cantos do quad: topo-esq, topo-dir, base-dir, base-esq
+
+vt 0.0 1.0
+vt 1.0 1.0
+vt 1.0 0.0
+vt 0.0 0.0
+
+# ---- normais ----------------------------------------------------------------
+
+vn  0  0  1
+vn  0  0 -1
+vn -1  0  0
+vn  1  0  0
+vn  0  1  0
+vn  0 -1  0
+
+# ---- faces (v/vt/vn) --------------------------------------------------------
+
+# frente
+f  1/1/1  2/2/1  3/3/1
+f  1/1/1  3/3/1  4/4/1
+# fundo
+f  5/1/2  6/2/2  7/3/2
+f  5/1/2  7/3/2  8/4/2
+# esquerda
+f  9/1/3 10/2/3 11/3/3
+f  9/1/3 11/3/3 12/4/3
+# direita
+f 13/1/4 14/2/4 15/3/4
+f 13/1/4 15/3/4 16/4/4
+# topo
+f 17/1/5 18/2/5 19/3/5
+f 17/1/5 19/3/5 20/4/5
+# base
+f 21/1/6 22/2/6 23/3/6
+f 21/1/6 23/3/6 24/4/6

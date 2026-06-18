@@ -1,36 +1,30 @@
 #version 330 core
 
-// ---------------------------------------------------------------
-// Entradas interpoladas do vertex shader
-// ---------------------------------------------------------------
-in vec3 vColor;
+in vec3 vNormal;
 in vec3 vFragPos;
-in vec2 vTexCoord;  // UV interpolado pelo rasterizador
+in vec2 vTexCoord;
 
-// ---------------------------------------------------------------
-// Saida — cor final do fragmento (pixel)
-// ---------------------------------------------------------------
 out vec4 fragColor;
 
-// ---------------------------------------------------------------
-// UBO PerFrame (binding point 0) — mesma declaracao do vertex shader
-//
-// Samplers nao podem entrar em UBOs (restricao OpenGL) —
-// uTexture permanece como uniform classico.
-// ---------------------------------------------------------------
 layout(std140) uniform PerFrame {
     mat4  uView;
     mat4  uProjection;
     float uTime;
 };
 
-uniform sampler2D uTexture;  // slot de textura passado via setUniform
+uniform sampler2D uTexture;
 
 void main() {
-    // Pulso de brilho baseado no tempo (vem do UBO PerFrame)
-    float pulse = 0.4 + 0.6 * abs(sin(uTime * 1.5));
+    // luz direcional fixa no world space (direcao normalizada)
+    vec3  lightDir = normalize(vec3(1.0, 2.0, 1.5));
+
+    // Lambertian diffuse: dot(N, L), clampado em [0, 1]
+    float diffuse  = max(dot(vNormal, lightDir), 0.0);
+
+    // ambient impede faces traseiras de ficarem completamente pretas
+    float ambient  = 0.25;
+    float light    = ambient + (1.0 - ambient) * diffuse;
 
     vec4 texColor = texture(uTexture, vTexCoord);
-
-    fragColor = texColor * vec4(vColor * pulse, 1.0);
+    fragColor = vec4(texColor.rgb * light, texColor.a);
 }
