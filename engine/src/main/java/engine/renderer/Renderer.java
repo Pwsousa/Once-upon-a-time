@@ -22,7 +22,25 @@ public final class Renderer {
 
     public void init() {
         glEnable(GL_DEPTH_TEST);
+
+        // alpha blending — pixels opacos (alpha=1) nao sao afetados,
+        // entao fica sempre ligado sem custo visual para texturas sem transparencia
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
         glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+    }
+
+    /**
+     * Liga/desliga escrita no depth buffer.
+     *
+     * Objetos semi-transparentes (blending real, nao apenas cutout) devem
+     * desenhar com depth write desligado — senao um pixel translucido grava
+     * profundidade "solida" e bloqueia o que deveria aparecer atras dele.
+     * O depth TEST continua ligado (objetos atras de solidos ainda somem).
+     */
+    public void setDepthWrite(boolean enabled) {
+        glDepthMask(enabled);
     }
 
     /**

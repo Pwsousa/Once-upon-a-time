@@ -17,6 +17,14 @@ import org.joml.Vector2f;
  * atlasOffset/atlasScale selecionam uma sub-regiao da textura (ver TextureAtlas)
  * — default (0,0)/(1,1) usa a textura inteira, sem custo extra para Models
  * que nao usam atlas.
+ *
+ * Transparencia — dois modos, mutuamente exclusivos na pratica:
+ *   alphaCutoff > 0   — cutout (folhas, grades, cercas): pixel e 100% opaco
+ *                       ou 100% descartado (discard). Sem problema de
+ *                       ordenacao, sempre escreve no depth buffer.
+ *   transparent = true — blending real (vidro, agua): mistura com o fundo.
+ *                       Desenhado depois dos opacos, sem escrita no depth
+ *                       buffer (ver Scene.render / Renderer.setDepthWrite).
  */
 public final class Model implements Cleanable {
 
@@ -29,6 +37,8 @@ public final class Model implements Cleanable {
     public final float   specularStrength;
     public final Vector2f atlasOffset;
     public final Vector2f atlasScale;
+    public final float   alphaCutoff;
+    public final boolean transparent;
 
     /** Material padrao (plastico levemente polido): shininess 32, specular 0.5. */
     public Model(Mesh mesh, Texture texture) {
@@ -43,12 +53,26 @@ public final class Model implements Cleanable {
     /** Com atlas — atlasOffset/atlasScale normalmente vem de TextureAtlas.offsetOf()/tileScale(). */
     public Model(Mesh mesh, Texture texture, float shininess, float specularStrength,
                  Vector2f atlasOffset, Vector2f atlasScale) {
+        this(mesh, texture, shininess, specularStrength, atlasOffset, atlasScale, 0f, false);
+    }
+
+    /**
+     * Construtor completo.
+     *
+     * @param alphaCutoff pixels com alpha abaixo deste limiar sao descartados
+     *                    (0 = desabilitado, textura opaca ou usa blending real)
+     * @param transparent true para blending real (desenhado por ultimo, sem depth write)
+     */
+    public Model(Mesh mesh, Texture texture, float shininess, float specularStrength,
+                 Vector2f atlasOffset, Vector2f atlasScale, float alphaCutoff, boolean transparent) {
         this.mesh             = mesh;
         this.texture          = texture;
         this.shininess        = shininess;
         this.specularStrength = specularStrength;
         this.atlasOffset      = atlasOffset;
         this.atlasScale       = atlasScale;
+        this.alphaCutoff      = alphaCutoff;
+        this.transparent      = transparent;
     }
 
     @Override

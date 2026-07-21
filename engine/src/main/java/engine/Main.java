@@ -158,7 +158,7 @@ public final class Main extends Engine {
             buf.putFloat(188, 0f);
         });
 
-        scene.render(shader, perObjectUBO);
+        scene.render(renderer, shader, perObjectUBO);
     }
 
     @Override

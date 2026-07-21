@@ -20,6 +20,7 @@ uniform float     uShininess        = 32.0;      // expoente do brilho especular
 uniform float     uSpecularStrength = 0.5;       // intensidade do highlight especular
 uniform vec2      uAtlasOffset      = vec2(0.0); // canto inferior-esquerdo do tile no atlas
 uniform vec2      uAtlasScale       = vec2(1.0); // tamanho do tile dentro do atlas (1,1 = textura inteira)
+uniform float     uAlphaCutoff      = 0.0;       // descarta pixel se alpha < isso (0 = desabilitado)
 
 void main() {
     vec3 N        = normalize(vNormal);
@@ -44,6 +45,7 @@ void main() {
     vec2 tiledUV = fract(vTexCoord);
     vec2 atlasUV = uAtlasOffset + tiledUV * uAtlasScale;
     vec4 texColor = texture(uTexture, atlasUV);
+    if (texColor.a < uAlphaCutoff) discard;
     vec3 result   = (ambient + diffuse) * texColor.rgb + specular;
     fragColor     = vec4(result, texColor.a);
 }

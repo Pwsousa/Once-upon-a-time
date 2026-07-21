@@ -1,6 +1,7 @@
 package engine.scene;
 
 import engine.renderer.Model;
+import engine.renderer.Renderer;
 import engine.renderer.ShaderProgram;
 import engine.renderer.UniformBuffer;
 
@@ -43,27 +44,44 @@ public final class Scene {
     /**
      * Desenha todas as entidades, agrupadas por Model.
      *
+     * Ordem: opacos e cutout primeiro, depois transparentes (blending real)
+     * por ultimo e com depth write desligado — assim o transparente nunca
+     * esconde algo atras dele por causa da propria profundidade escrita
+     * (nao ha sorting entre transparentes entre si; ok para poucos objetos
+     * translucidos que nao se sobrepoem, ver limitacao na doc da classe).
+     *
      * @param perObjectUBO UBO usado para o transform (uModel) de cada entidade
      */
-    public void render(ShaderProgram shader, UniformBuffer perObjectUBO) {
+    public void render(Renderer renderer, ShaderProgram shader, UniformBuffer perObjectUBO) {
         shader.bind();
 
         for (Map.Entry<Model, List<Entity>> batch : batches.entrySet()) {
-            Model model = batch.getKey();
-
-            model.texture.bind(0);
-            shader.setUniform("uTexture", 0);
-            shader.setUniform("uShininess", model.shininess);
-            shader.setUniform("uSpecularStrength", model.specularStrength);
-            shader.setUniform("uAtlasOffset", model.atlasOffset);
-            shader.setUniform("uAtlasScale", model.atlasScale);
-
-            for (Entity entity : batch.getValue()) {
-                perObjectUBO.upload(buf -> entity.transform.getMatrix().get(0, buf));
-                model.mesh.draw();
-            }
+            if (!batch.getKey().transparent) drawBatch(shader, perObjectUBO, batch);
         }
 
+        renderer.setDepthWrite(false);
+        for (Map.Entry<Model, List<Entity>> batch : batches.entrySet()) {
+            if (batch.getKey().transparent) drawBatch(shader, perObjectUBO, batch);
+        }
+        renderer.setDepthWrite(true);
+
         shader.unbind();
+    }
+
+    private void drawBatch(ShaderProgram shader, UniformBuffer perObjectUBO, Map.Entry<Model, List<Entity>> batch) {
+        Model model = batch.getKey();
+
+        model.texture.bind(0);
+        shader.setUniform("uTexture", 0);
+        shader.setUniform("uShininess", model.shininess);
+        shader.setUniform("uSpecularStrength", model.specularStrength);
+        shader.setUniform("uAtlasOffset", model.atlasOffset);
+        shader.setUniform("uAtlasScale", model.atlasScale);
+        shader.setUniform("uAlphaCutoff", model.alphaCutoff);
+
+        for (Entity entity : batch.getValue()) {
+            perObjectUBO.upload(buf -> entity.transform.getMatrix().get(0, buf));
+            model.mesh.draw();
+        }
     }
 }
