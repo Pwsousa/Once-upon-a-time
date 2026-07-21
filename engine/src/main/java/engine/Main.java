@@ -70,7 +70,8 @@ public final class Main extends Engine {
         // segundo modelo, lado a lado com o cubo
         ObjLoader.MeshData stallData = ObjLoader.load("models/stall.obj");
         Mesh stallMesh = Mesh.create(stallData.vertices, stallData.indices, 3, 3, 2);
-        stallModel = new Model(stallMesh, new Texture("textures/stallTexture.png"));
+        // madeira fosca: highlight fraco e espalhado (shininess baixo)
+        stallModel = new Model(stallMesh, new Texture("textures/stallTexture.png"), 8f, 0.15f);
 
         stall = new Entity(stallModel);
         stall.transform.position.set(5f, 0f, 0f);
@@ -135,7 +136,11 @@ public final class Main extends Engine {
     private void renderEntity(Entity entity) {
         entity.model.texture.bind(0);
         perObjectUBO.upload(buf -> entity.transform.getMatrix().get(0, buf));
-        renderer.render(shader, s -> s.setUniform("uTexture", 0), entity.model.mesh);
+        renderer.render(shader, s -> {
+            s.setUniform("uTexture", 0);
+            s.setUniform("uShininess", entity.model.shininess);
+            s.setUniform("uSpecularStrength", entity.model.specularStrength);
+        }, entity.model.mesh);
     }
 
     @Override
