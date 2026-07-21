@@ -16,8 +16,10 @@ layout(std140) uniform PerFrame {
 };
 
 uniform sampler2D uTexture;
-uniform float     uShininess       = 32.0;  // expoente do brilho especular (mais alto = mais concentrado)
-uniform float     uSpecularStrength = 0.5;  // intensidade do highlight especular
+uniform float     uShininess        = 32.0;      // expoente do brilho especular (mais alto = mais concentrado)
+uniform float     uSpecularStrength = 0.5;       // intensidade do highlight especular
+uniform vec2      uAtlasOffset      = vec2(0.0); // canto inferior-esquerdo do tile no atlas
+uniform vec2      uAtlasScale       = vec2(1.0); // tamanho do tile dentro do atlas (1,1 = textura inteira)
 
 void main() {
     vec3 N        = normalize(vNormal);
@@ -37,7 +39,11 @@ void main() {
     float specFactor = pow(max(dot(N, halfwayDir), 0.0), uShininess);
     vec3  specular   = uSpecularStrength * specFactor * lightCol;
 
-    vec4 texColor = texture(uTexture, vTexCoord);
+    // mosaico: fract() repete o padrao dentro do tile do atlas (uAtlasScale),
+    // sem vazar para tiles vizinhos — vTexCoord pode exceder [0,1] (tiling)
+    vec2 tiledUV = fract(vTexCoord);
+    vec2 atlasUV = uAtlasOffset + tiledUV * uAtlasScale;
+    vec4 texColor = texture(uTexture, atlasUV);
     vec3 result   = (ambient + diffuse) * texColor.rgb + specular;
     fragColor     = vec4(result, texColor.a);
 }

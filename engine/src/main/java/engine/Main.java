@@ -11,6 +11,7 @@ import engine.renderer.Texture;
 import engine.renderer.UniformBuffer;
 import engine.scene.Entity;
 import engine.scene.Scene;
+import engine.terrain.Terrain;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -32,8 +33,10 @@ public final class Main extends Engine {
     private ShaderProgram shader;
     private Model         cubeModel;
     private Model         stallModel;
+    private Model         terrainModel;
     private Entity        cube;
     private Entity        stall;
+    private Entity        terrain;
     private UniformBuffer perFrameUBO;
     private UniformBuffer perObjectUBO;
     private Light         sun;
@@ -80,9 +83,18 @@ public final class Main extends Engine {
         stall = new Entity(stallModel);
         stall.transform.position.set(5f, 0f, 0f);
 
+        // terreno: mesh gerada (grid 20x20, 20x20 unidades), tratado como
+        // Model comum — mesmo pipeline de Entity/Scene do resto da cena
+        Mesh terrainMesh = Terrain.flat(20f, 20, 8f);
+        terrainModel = new Model(terrainMesh, new Texture("textures/test.png"), 2f, 0.05f);
+
+        terrain = new Entity(terrainModel);
+        terrain.transform.position.set(0f, -1f, 0f);
+
         // agrupa entidades por Model — bind de textura/uniforms de material
         // acontece 1x por grupo, nao por entidade (ver engine.scene.Scene)
         scene = new Scene();
+        scene.add(terrain);
         scene.add(cube);
         scene.add(stall);
 
@@ -154,6 +166,7 @@ public final class Main extends Engine {
         shader.cleanup();
         cubeModel.cleanup();
         stallModel.cleanup();
+        terrainModel.cleanup();
         perFrameUBO.cleanup();
         perObjectUBO.cleanup();
     }

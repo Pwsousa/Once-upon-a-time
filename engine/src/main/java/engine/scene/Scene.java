@@ -55,6 +55,8 @@ public final class Scene {
             shader.setUniform("uTexture", 0);
             shader.setUniform("uShininess", model.shininess);
             shader.setUniform("uSpecularStrength", model.specularStrength);
+            shader.setUniform("uAtlasOffset", model.atlasOffset);
+            shader.setUniform("uAtlasScale", model.atlasScale);
 
             for (Entity entity : batch.getValue()) {
                 perObjectUBO.upload(buf -> entity.transform.getMatrix().get(0, buf));
