@@ -135,9 +135,9 @@ public final class ObjLoader {
 
         String[] idx = token.split("/");
 
-        int vi  = Integer.parseInt(idx[0]) - 1;                                 // pos (obrigatorio)
-        int vti = (idx.length > 1 && !idx[1].isEmpty()) ? Integer.parseInt(idx[1]) - 1 : -1;
-        int vni = (idx.length > 2 && !idx[2].isEmpty()) ? Integer.parseInt(idx[2]) - 1 : -1;
+        int vi  = resolveIndex(Integer.parseInt(idx[0]), positions.size());                                   // pos (obrigatorio)
+        int vti = (idx.length > 1 && !idx[1].isEmpty()) ? resolveIndex(Integer.parseInt(idx[1]), uvs.size())     : -1;
+        int vni = (idx.length > 2 && !idx[2].isEmpty()) ? resolveIndex(Integer.parseInt(idx[2]), normals.size()) : -1;
 
         float[] pos = positions.get(vi);
         float[] uv  = vti >= 0 && vti < uvs.size()     ? uvs.get(vti)     : new float[]{0f, 0f};
@@ -151,5 +151,13 @@ public final class ObjLoader {
         int newIdx = seen.size();
         seen.put(token, newIdx);
         return newIdx;
+    }
+
+    /**
+     * Converte indice OBJ (1-based, ou negativo relativo ao total ja declarado)
+     * para indice 0-based na lista correspondente.
+     */
+    private static int resolveIndex(int raw, int countSoFar) {
+        return raw < 0 ? countSoFar + raw : raw - 1;
     }
 }
