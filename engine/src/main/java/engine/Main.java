@@ -1,6 +1,7 @@
 package engine;
 
 import engine.core.WindowConfig;
+import engine.lighting.AmbientLight;
 import engine.lighting.Light;
 import engine.renderer.Mesh;
 import engine.renderer.Model;
@@ -9,6 +10,7 @@ import engine.renderer.ShaderProgram;
 import engine.renderer.Texture;
 import engine.renderer.UniformBuffer;
 import engine.scene.Entity;
+import engine.scene.Scene;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -35,8 +37,10 @@ public final class Main extends Engine {
     private UniformBuffer perFrameUBO;
     private UniformBuffer perObjectUBO;
     private Light         sun;
+    private AmbientLight  ambient;
+    private Scene         scene;
 
-    private static final int PER_FRAME_SIZE  = 176;
+    private static final int PER_FRAME_SIZE  = 192;
     private static final int PER_OBJECT_SIZE = 64;
 
     private final Matrix4f view      = new Matrix4f();
@@ -76,6 +80,12 @@ public final class Main extends Engine {
         stall = new Entity(stallModel);
         stall.transform.position.set(5f, 0f, 0f);
 
+        // agrupa entidades por Model — bind de textura/uniforms de material
+        // acontece 1x por grupo, nao por entidade (ver engine.scene.Scene)
+        scene = new Scene();
+        scene.add(cube);
+        scene.add(stall);
+
         shader.bind();
         shader.bindUniformBlock("PerFrame",  0);
         shader.bindUniformBlock("PerObject", 1);
@@ -93,8 +103,11 @@ public final class Main extends Engine {
 
         proj.perspective((float) Math.toRadians(45f), getAspectRatio(), 0.1f, 100f);
 
-        // luz direcional (tipo sol), branca, com piso ambient de 25%
-        sun = new Light(new Vector3f(1f, 2f, 1.5f), new Vector3f(1f, 1f, 1f), 0.25f);
+        // luz direcional (tipo sol), branca
+        sun = new Light(new Vector3f(1f, 2f, 1.5f), new Vector3f(1f, 1f, 1f));
+
+        // luz ambiente (tipo ceu), azulada, 20% de intensidade
+        ambient = new AmbientLight(new Vector3f(0.5f, 0.6f, 0.75f), 0.2f);
     }
 
     @Override
@@ -122,25 +135,18 @@ public final class Main extends Engine {
             buf.putFloat(144, sun.color.x);
             buf.putFloat(148, sun.color.y);
             buf.putFloat(152, sun.color.z);
-            buf.putFloat(156, sun.ambientStrength);
-            buf.putFloat(160, cameraPos.x);
-            buf.putFloat(164, cameraPos.y);
-            buf.putFloat(168, cameraPos.z);
-            buf.putFloat(172, 0f);
+            buf.putFloat(156, 0f);
+            buf.putFloat(160, ambient.color.x);
+            buf.putFloat(164, ambient.color.y);
+            buf.putFloat(168, ambient.color.z);
+            buf.putFloat(172, ambient.intensity);
+            buf.putFloat(176, cameraPos.x);
+            buf.putFloat(180, cameraPos.y);
+            buf.putFloat(184, cameraPos.z);
+            buf.putFloat(188, 0f);
         });
 
-        renderEntity(cube);
-        renderEntity(stall);
-    }
-
-    private void renderEntity(Entity entity) {
-        entity.model.texture.bind(0);
-        perObjectUBO.upload(buf -> entity.transform.getMatrix().get(0, buf));
-        renderer.render(shader, s -> {
-            s.setUniform("uTexture", 0);
-            s.setUniform("uShininess", entity.model.shininess);
-            s.setUniform("uSpecularStrength", entity.model.specularStrength);
-        }, entity.model.mesh);
+        scene.render(shader, perObjectUBO);
     }
 
     @Override

@@ -9,9 +9,10 @@ out vec4 fragColor;
 layout(std140) uniform PerFrame {
     mat4 uView;
     mat4 uProjection;
-    vec4 uLightDirTime;      // xyz = direcao da luz (world space), w = uTime
-    vec4 uLightColorAmbient; // rgb = cor da luz, a = ambient strength
-    vec4 uViewPos;           // xyz = posicao da camera (world space), w nao usado
+    vec4 uLightDirTime; // xyz = direcao da luz (world space), w = uTime
+    vec4 uLightColor;   // rgb = cor da luz direcional, a nao usado
+    vec4 uAmbientColor; // rgb = cor da luz ambiente, a = intensidade
+    vec4 uViewPos;      // xyz = posicao da camera (world space), w nao usado
 };
 
 uniform sampler2D uTexture;
@@ -21,11 +22,10 @@ uniform float     uSpecularStrength = 0.5;  // intensidade do highlight especula
 void main() {
     vec3 N        = normalize(vNormal);
     vec3 lightDir = normalize(uLightDirTime.xyz);
-    vec3 lightCol = uLightColorAmbient.rgb;
-    float ambientStrength = uLightColorAmbient.a;
+    vec3 lightCol = uLightColor.rgb;
 
-    // ambient: piso de luz, evita faces traseiras 100% pretas
-    vec3 ambient = ambientStrength * lightCol;
+    // ambient: luz de preenchimento global, independente da luz direcional
+    vec3 ambient = uAmbientColor.rgb * uAmbientColor.a;
 
     // diffuse (Lambert): dot(N, L), clampado em [0, 1]
     float diff    = max(dot(N, lightDir), 0.0);

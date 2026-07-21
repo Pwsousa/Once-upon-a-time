@@ -11,9 +11,10 @@ out vec2 vTexCoord;
 layout(std140) uniform PerFrame {
     mat4 uView;
     mat4 uProjection;
-    vec4 uLightDirTime;      // xyz = direcao da luz (world space), w = uTime
-    vec4 uLightColorAmbient; // rgb = cor da luz, a = ambient strength
-    vec4 uViewPos;           // xyz = posicao da camera (world space), w nao usado
+    vec4 uLightDirTime; // xyz = direcao da luz (world space), w = uTime
+    vec4 uLightColor;   // rgb = cor da luz direcional, a nao usado
+    vec4 uAmbientColor; // rgb = cor da luz ambiente, a = intensidade
+    vec4 uViewPos;      // xyz = posicao da camera (world space), w nao usado
 };
 
 layout(std140) uniform PerObject {
