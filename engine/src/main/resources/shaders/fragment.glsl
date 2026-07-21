@@ -7,24 +7,37 @@ in vec2 vTexCoord;
 out vec4 fragColor;
 
 layout(std140) uniform PerFrame {
-    mat4  uView;
-    mat4  uProjection;
-    float uTime;
+    mat4 uView;
+    mat4 uProjection;
+    vec4 uLightDirTime;      // xyz = direcao da luz (world space), w = uTime
+    vec4 uLightColorAmbient; // rgb = cor da luz, a = ambient strength
+    vec4 uViewPos;           // xyz = posicao da camera (world space), w nao usado
 };
 
 uniform sampler2D uTexture;
+uniform float     uShininess       = 32.0;  // expoente do brilho especular (mais alto = mais concentrado)
+uniform float     uSpecularStrength = 0.5;  // intensidade do highlight especular
 
 void main() {
-    // luz direcional fixa no world space (direcao normalizada)
-    vec3  lightDir = normalize(vec3(1.0, 2.0, 1.5));
+    vec3 N        = normalize(vNormal);
+    vec3 lightDir = normalize(uLightDirTime.xyz);
+    vec3 lightCol = uLightColorAmbient.rgb;
+    float ambientStrength = uLightColorAmbient.a;
 
-    // Lambertian diffuse: dot(N, L), clampado em [0, 1]
-    float diffuse  = max(dot(vNormal, lightDir), 0.0);
+    // ambient: piso de luz, evita faces traseiras 100% pretas
+    vec3 ambient = ambientStrength * lightCol;
 
-    // ambient impede faces traseiras de ficarem completamente pretas
-    float ambient  = 0.25;
-    float light    = ambient + (1.0 - ambient) * diffuse;
+    // diffuse (Lambert): dot(N, L), clampado em [0, 1]
+    float diff    = max(dot(N, lightDir), 0.0);
+    vec3  diffuse = diff * lightCol;
+
+    // specular (Blinn-Phong): highlight baseado no vetor halfway entre luz e camera
+    vec3  viewDir    = normalize(uViewPos.xyz - vFragPos);
+    vec3  halfwayDir = normalize(lightDir + viewDir);
+    float specFactor = pow(max(dot(N, halfwayDir), 0.0), uShininess);
+    vec3  specular   = uSpecularStrength * specFactor * lightCol;
 
     vec4 texColor = texture(uTexture, vTexCoord);
-    fragColor = vec4(texColor.rgb * light, texColor.a);
+    vec3 result   = (ambient + diffuse) * texColor.rgb + specular;
+    fragColor     = vec4(result, texColor.a);
 }

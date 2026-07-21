@@ -9,9 +9,11 @@ out vec3 vFragPos;   // posicao em world space
 out vec2 vTexCoord;
 
 layout(std140) uniform PerFrame {
-    mat4  uView;
-    mat4  uProjection;
-    float uTime;
+    mat4 uView;
+    mat4 uProjection;
+    vec4 uLightDirTime;      // xyz = direcao da luz (world space), w = uTime
+    vec4 uLightColorAmbient; // rgb = cor da luz, a = ambient strength
+    vec4 uViewPos;           // xyz = posicao da camera (world space), w nao usado
 };
 
 layout(std140) uniform PerObject {

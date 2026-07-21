@@ -1,6 +1,7 @@
 package engine;
 
 import engine.core.WindowConfig;
+import engine.lighting.Light;
 import engine.renderer.Mesh;
 import engine.renderer.Model;
 import engine.renderer.ObjLoader;
@@ -28,15 +29,19 @@ public final class Main extends Engine {
 
     private ShaderProgram shader;
     private Model         cubeModel;
+    private Model         stallModel;
     private Entity        cube;
+    private Entity        stall;
     private UniformBuffer perFrameUBO;
     private UniformBuffer perObjectUBO;
+    private Light         sun;
 
-    private static final int PER_FRAME_SIZE  = 144;
+    private static final int PER_FRAME_SIZE  = 176;
     private static final int PER_OBJECT_SIZE = 64;
 
-    private final Matrix4f view = new Matrix4f();
-    private final Matrix4f proj = new Matrix4f();
+    private final Matrix4f view      = new Matrix4f();
+    private final Matrix4f proj      = new Matrix4f();
+    private final Vector3f cameraPos = new Vector3f(0f, 4f, 14f);
     private float time = 0f;
 
     public static void main(String[] args) { new Main().start(); }
@@ -55,12 +60,20 @@ public final class Main extends Engine {
         shader = new ShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
 
         // carrega OBJ do classpath (src/main/resources/models/cube.obj)
-        ObjLoader.MeshData data = ObjLoader.load("models/cube.obj");
-        Mesh mesh = Mesh.create(data.vertices, data.indices, 3, 3, 2);
-        cubeModel = new Model(mesh, new Texture("textures/test.png"));
+        ObjLoader.MeshData cubeData = ObjLoader.load("models/cube.obj");
+        Mesh cubeMesh = Mesh.create(cubeData.vertices, cubeData.indices, 3, 3, 2);
+        cubeModel = new Model(cubeMesh, new Texture("textures/test.png"));
 
         cube = new Entity(cubeModel);
-        cube.transform.position.set(0f, 0f, 0f);
+        cube.transform.position.set(-5f, 0f, 0f);
+
+        // segundo modelo, lado a lado com o cubo
+        ObjLoader.MeshData stallData = ObjLoader.load("models/stall.obj");
+        Mesh stallMesh = Mesh.create(stallData.vertices, stallData.indices, 3, 3, 2);
+        stallModel = new Model(stallMesh, new Texture("textures/stallTexture.png"));
+
+        stall = new Entity(stallModel);
+        stall.transform.position.set(5f, 0f, 0f);
 
         shader.bind();
         shader.bindUniformBlock("PerFrame",  0);
@@ -70,14 +83,17 @@ public final class Main extends Engine {
         perFrameUBO  = new UniformBuffer(0, PER_FRAME_SIZE);
         perObjectUBO = new UniformBuffer(1, PER_OBJECT_SIZE);
 
-        // camera fixa olhando para a origem
+        // camera afastada para enquadrar os dois modelos lado a lado
         view.lookAt(
-            new Vector3f(0f, 1.5f, 3f),  // posicao camera
-            new Vector3f(0f, 0f,   0f),  // alvo (cubo)
-            new Vector3f(0f, 1f,   0f)   // up
+            cameraPos,                  // posicao camera
+            new Vector3f(0f, 0f,  0f),  // alvo (entre os dois modelos)
+            new Vector3f(0f, 1f,  0f)   // up
         );
 
         proj.perspective((float) Math.toRadians(45f), getAspectRatio(), 0.1f, 100f);
+
+        // luz direcional (tipo sol), branca, com piso ambient de 25%
+        sun = new Light(new Vector3f(1f, 2f, 1.5f), new Vector3f(1f, 1f, 1f), 0.25f);
     }
 
     @Override
@@ -90,6 +106,7 @@ public final class Main extends Engine {
         time += deltaTime;
         cube.transform.rotation.y = time * 45f;
         cube.transform.rotation.x = time * 20f;
+        stall.transform.rotation.y = time * 45f;
     }
 
     @Override
@@ -97,18 +114,35 @@ public final class Main extends Engine {
         perFrameUBO.upload(buf -> {
             view.get(0, buf);
             proj.get(64, buf);
-            buf.putFloat(128, time);
+            buf.putFloat(128, sun.direction.x);
+            buf.putFloat(132, sun.direction.y);
+            buf.putFloat(136, sun.direction.z);
+            buf.putFloat(140, time);
+            buf.putFloat(144, sun.color.x);
+            buf.putFloat(148, sun.color.y);
+            buf.putFloat(152, sun.color.z);
+            buf.putFloat(156, sun.ambientStrength);
+            buf.putFloat(160, cameraPos.x);
+            buf.putFloat(164, cameraPos.y);
+            buf.putFloat(168, cameraPos.z);
+            buf.putFloat(172, 0f);
         });
 
-        cube.model.texture.bind(0);
-        perObjectUBO.upload(buf -> cube.transform.getMatrix().get(0, buf));
-        renderer.render(shader, s -> s.setUniform("uTexture", 0), cube.model.mesh);
+        renderEntity(cube);
+        renderEntity(stall);
+    }
+
+    private void renderEntity(Entity entity) {
+        entity.model.texture.bind(0);
+        perObjectUBO.upload(buf -> entity.transform.getMatrix().get(0, buf));
+        renderer.render(shader, s -> s.setUniform("uTexture", 0), entity.model.mesh);
     }
 
     @Override
     protected void onCleanup() {
         shader.cleanup();
         cubeModel.cleanup();
+        stallModel.cleanup();
         perFrameUBO.cleanup();
         perObjectUBO.cleanup();
     }
